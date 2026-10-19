@@ -159,17 +159,18 @@
             border-radius: 10px;
         }
 
-        .progress-text {
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
             font-size: 14px;
             color: var(--text-muted);
-            text-align: right;
             margin-bottom: 20px;
             font-weight: 600;
         }
 
         .input-row {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             margin-bottom: 25px;
         }
 
@@ -190,8 +191,25 @@
             box-shadow: 0 0 0 4px var(--light-blue);
         }
 
+        select.time-select {
+            padding: 0 14px;
+            border-radius: 16px;
+            border: 2px solid var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            font-size: 15px;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        select.time-select:focus {
+            border-color: var(--primary-blue);
+        }
+
         button.add-btn {
-            padding: 0 25px;
+            padding: 0 22px;
             border-radius: 16px;
             border: none;
             cursor: pointer;
@@ -234,9 +252,10 @@
         .task-content {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             flex: 1;
             cursor: pointer;
+            flex-wrap: wrap;
         }
 
         /* Satisfying Checkbox */
@@ -253,6 +272,7 @@
             font-size: 18px;
             color: white;
             background: var(--panel-bg);
+            flex-shrink: 0;
         }
 
         .task-content:hover .checkbox { border-color: var(--primary-blue); }
@@ -271,6 +291,19 @@
             font-weight: 600;
             transition: color 0.3s;
             color: var(--text-main);
+        }
+
+        .time-badge {
+            font-size: 12px;
+            font-weight: 700;
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .task-actions {
@@ -313,6 +346,13 @@
             margin-bottom: 25px;
             text-align: center;
             border: 1px solid var(--border-color);
+        }
+
+        .total-time-display {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-top: 6px;
         }
 
         .cycle-dots {
@@ -434,10 +474,23 @@
             <div class="progress-container">
                 <div class="progress-fill" id="monthlyProgressFill"></div>
             </div>
-            <div class="progress-text" id="monthlyProgressText">0% Completed</div>
+            <div class="progress-info">
+                <span id="monthlyTimeText">⏱️ Total: 0 hrs</span>
+                <span id="monthlyProgressText">0% Completed</span>
+            </div>
 
             <div class="input-row">
                 <input type="text" id="monthlyInput" placeholder="What's the major goal?" onkeypress="handleEnter(event, 'monthly')">
+                <select id="monthlyTime" class="time-select" title="Estimated time required">
+                    <option value="0">⏱️ No time</option>
+                    <option value="0.5">0.5 hr</option>
+                    <option value="1">1 hr</option>
+                    <option value="1.5">1.5 hrs</option>
+                    <option value="2">2 hrs</option>
+                    <option value="3">3 hrs</option>
+                    <option value="4">4 hrs</option>
+                    <option value="5">5+ hrs</option>
+                </select>
                 <button class="add-btn" onclick="addTask('monthly')">+</button>
             </div>
             <ul id="monthlyList"></ul>
@@ -448,6 +501,7 @@
             
             <div class="routine-header-info">
                 <div id="cycleText" style="font-weight: 800; font-size: 20px; color: var(--text-main);">Monday (Day 1 of 6)</div>
+                <div id="routineTimeText" class="total-time-display">⏱️ Daily Commitment: 0 hrs</div>
                 <div class="streak-container">
                     <div class="streak-badge" id="streakText">🔥 Streak: 0 Weeks</div>
                     <button class="reset-btn" onclick="resetStreak()" title="Reset Streak to 0">↺</button>
@@ -458,6 +512,15 @@
             <div id="routineWorkspace">
                 <div class="input-row">
                     <input type="text" id="routineInput" placeholder="Add a weekly routine task..." onkeypress="handleEnter(event, 'routine')">
+                    <select id="routineTime" class="time-select" title="Estimated time required">
+                        <option value="0">⏱️ No time</option>
+                        <option value="0.25">15 min</option>
+                        <option value="0.5">30 min</option>
+                        <option value="0.75">45 min</option>
+                        <option value="1">1 hr</option>
+                        <option value="1.5">1.5 hrs</option>
+                        <option value="2">2 hrs</option>
+                    </select>
                     <button class="add-btn" onclick="addTask('routine')">+</button>
                 </div>
                 <ul id="routineList"></ul>
@@ -492,7 +555,7 @@
         }
 
         function loadData() {
-            const saved = localStorage.getItem('focusFlowStateV4');
+            const saved = localStorage.getItem('focusFlowStateV5');
             if (saved) {
                 state = JSON.parse(saved);
             }
@@ -502,7 +565,7 @@
         }
 
         function saveData() {
-            localStorage.setItem('focusFlowStateV4', JSON.stringify(state));
+            localStorage.setItem('focusFlowStateV5', JSON.stringify(state));
         }
 
         function toggleDarkMode() {
@@ -565,10 +628,13 @@
 
         function addTask(type) {
             const input = document.getElementById(type + 'Input');
+            const timeSelect = document.getElementById(type + 'Time');
             const text = input.value.trim();
+            const timeVal = parseFloat(timeSelect.value) || 0;
+
             if (!text) return;
 
-            let newTask = { id: Date.now(), text: text, completed: false };
+            let newTask = { id: Date.now(), text: text, time: timeVal, completed: false };
             
             if (type === 'routine') {
                 state.routineTasks.push(newTask);
@@ -577,6 +643,7 @@
             }
             
             input.value = '';
+            timeSelect.value = "0";
             saveData();
             renderAll();
         }
@@ -596,12 +663,17 @@
             const task = taskArray.find(t => t.id === id);
             if (!task) return;
 
-            const newText = prompt("Edit your task:", task.text);
-            if (newText !== null && newText.trim() !== "") {
-                task.text = newText.trim();
-                saveData();
-                renderAll();
-            }
+            const newText = prompt("Edit task description:", task.text);
+            if (newText === null || newText.trim() === "") return;
+
+            const newTimeStr = prompt("Edit required time in hours (e.g., 0.5, 1, 1.5):", task.time || 0);
+            const newTime = parseFloat(newTimeStr);
+
+            task.text = newText.trim();
+            task.time = isNaN(newTime) ? 0 : newTime;
+
+            saveData();
+            renderAll();
         }
 
         function toggleTask(event, type, id) {
@@ -655,6 +727,14 @@
             }
         }
 
+        function formatTimeBadge(hours) {
+            if (!hours || hours === 0) return '';
+            if (hours < 1) {
+                return `⏱️ ${Math.round(hours * 60)} min`;
+            }
+            return `⏱️ ${hours} hr${hours > 1 ? 's' : ''}`;
+        }
+
         function shootConfetti(amount) {
             confetti({
                 particleCount: amount,
@@ -676,14 +756,20 @@
             
             let total = state.monthly.length;
             let completed = 0;
+            let totalHours = 0;
 
             state.monthly.forEach(task => {
                 if (task.completed) completed++;
+                if (task.time) totalHours += task.time;
+
                 const li = document.createElement('li');
+                const badge = task.time ? `<span class="time-badge">${formatTimeBadge(task.time)}</span>` : '';
+
                 li.innerHTML = `
                     <div class="task-content ${task.completed ? 'completed' : ''}" onclick="toggleTask(event, 'monthly', ${task.id})">
                         <div class="checkbox">${task.completed ? '✓' : ''}</div>
                         <div class="text">${task.text}</div>
+                        ${badge}
                     </div>
                     <div class="task-actions">
                         <button class="edit-btn" onclick="editTask('monthly', ${task.id})" title="Edit">
@@ -699,10 +785,12 @@
 
             const progressFill = document.getElementById('monthlyProgressFill');
             const progressText = document.getElementById('monthlyProgressText');
+            const monthlyTimeText = document.getElementById('monthlyTimeText');
             
             let percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
             progressFill.style.width = percentage + '%';
             progressText.innerText = `${percentage}% Completed`;
+            monthlyTimeText.innerText = `⏱️ Total Workload: ${totalHours} hrs`;
             
             if (percentage === 100 && total > 0) {
                 progressFill.style.background = 'var(--success-green)';
@@ -717,6 +805,10 @@
 
             document.getElementById('cycleText').innerText = isRestDay ? "Sunday — Rest & Recharge" : `${dayNames[rState.dayInWeek - 1]} (Day ${rState.dayInWeek} of 6)`;
             document.getElementById('streakText').innerText = `🔥 Streak: ${rState.streak} Weeks`;
+
+            let routineHours = 0;
+            state.routineTasks.forEach(t => { if (t.time) routineHours += t.time; });
+            document.getElementById('routineTimeText').innerText = `⏱️ Daily Commitment: ${routineHours} hr${routineHours === 1 ? '' : 's'}`;
 
             let dotsHtml = '';
             for(let i=1; i<=6; i++) {
@@ -742,10 +834,13 @@
                 state.routineTasks.forEach(task => {
                     if (!task.completed) allCompleted = false;
                     const li = document.createElement('li');
+                    const badge = task.time ? `<span class="time-badge">${formatTimeBadge(task.time)}</span>` : '';
+
                     li.innerHTML = `
                         <div class="task-content ${task.completed ? 'completed' : ''}" onclick="toggleTask(event, 'routine', ${task.id})">
                             <div class="checkbox">${task.completed ? '✓' : ''}</div>
                             <div class="text">${task.text}</div>
+                            ${badge}
                         </div>
                         <div class="task-actions">
                             <button class="edit-btn" onclick="editTask('routine', ${task.id})" title="Edit">
