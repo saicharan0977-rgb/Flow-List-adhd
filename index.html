@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            --panel-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #102a43;
+            --text-muted: #829ab1;
+            --primary-blue: #007AFF;
+            --light-blue: #E5F1FF;
+            --glow-blue: rgba(0, 122, 255, 0.3);
+            --delete-red: #ff3b30;
+            --success-green: #34c759;
+            --border-color: #e4e7eb;
+        }
+
+        body.dark-mode {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --panel-bg: rgba(30, 41, 59, 0.95);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary-blue: #3b82f6;
+            --light-blue: #1e3a8a;
+            --glow-blue: rgba(59, 130, 246, 0.4);
+            --delete-red: #ef4444;
+            --success-green: #22c55e;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: var(--panel-bg);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            z-index: 10;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--primary-blue);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .date-display {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-muted);
+            background: var(--light-blue);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .header-btn {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: var(--light-blue);
+            color: var(--primary-blue);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+            height: calc(100vh - 75px);
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 24px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(16, 42, 67, 0.08);
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Custom Scrollbar */
+        .panel::-webkit-scrollbar { width: 8px; }
+        .panel::-webkit-scrollbar-track { background: transparent; }
+        .panel::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 10px; opacity: 0.5; }
+
+        h2 {
+            margin-bottom: 20px;
+            font-weight: 800;
+            font-size: 24px;
+            color: var(--text-main);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Progress Bar for Monthly Targets */
+        .progress-container {
+            width: 100%;
+            height: 12px;
+            background: var(--light-blue);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-blue);
+            width: 0%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-align: right;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 16px 20px;
+            border-radius: 16px;
+            border: 2px solid var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus { 
+            border-color: var(--primary-blue); 
+            box-shadow: 0 0 0 4px var(--light-blue);
+        }
+
+        button.add-btn {
+            padding: 0 25px;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 24px;
+            background: var(--primary-blue);
+            color: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        button.add-btn:active { transform: scale(0.90); }
+        button.add-btn:hover { 
+            opacity: 0.9; 
+            box-shadow: 0 8px 20px var(--glow-blue); 
+        }
+
+        ul { list-style: none; flex: 1; }
+
+        li {
+            background: var(--panel-bg);
+            margin-bottom: 15px;
+            padding: 18px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 2px solid var(--border-color);
+        }
+
+        li:hover { 
+            border-color: var(--primary-blue); 
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px var(--glow-blue);
+        }
+
+        .task-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        /* Satisfying Checkbox */
+        .checkbox {
+            width: 30px;
+            height: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-weight: bold;
+            font-size: 18px;
+            color: white;
+            background: var(--panel-bg);
+        }
+
+        .task-content:hover .checkbox { border-color: var(--primary-blue); }
+
+        .task-content.completed .checkbox { 
+            background: var(--primary-blue); 
+            border-color: var(--primary-blue); 
+        }
+        .task-content.completed .text { 
+            text-decoration: line-through; 
+            color: var(--text-muted); 
+        }
+
+        .text {
+            font-size: 16px;
+            font-weight: 600;
+            transition: color 0.3s;
+            color: var(--text-main);
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .edit-btn, .delete-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .edit-btn:hover { 
+            color: var(--primary-blue); 
+            background: var(--light-blue);
+            transform: scale(1.1); 
+        }
+
+        .delete-btn:hover { 
+            color: var(--delete-red); 
+            background: rgba(255, 59, 48, 0.1);
+            transform: scale(1.1); 
+        }
+
+        /* Routine Specific Styles */
+        .routine-header-info {
+            background: var(--light-blue);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .cycle-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dot.active { 
+            background: var(--primary-blue); 
+            border-color: var(--primary-blue);
+            transform: scale(1.2);
+            box-shadow: 0 0 12px var(--glow-blue); 
+        }
+        .dot.rest { 
+            background: var(--panel-bg); 
+            border-color: var(--success-green);
+        }
+        .dot.rest.active {
+            background: var(--success-green);
+            box-shadow: 0 0 15px rgba(52, 199, 89, 0.4);
+        }
+
+        .streak-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .streak-badge { font-size: 16px; color: var(--primary-blue); font-weight: 800; }
+
+        .reset-btn {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reset-btn:hover {
+            background: var(--delete-red);
+            border-color: var(--delete-red);
+            color: white;
+            transform: rotate(-180deg);
+        }
+
+        .complete-day-btn {
+            width: 100%;
+            padding: 18px;
+            background: var(--primary-blue);
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-weight: 800;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none;
+            transition: all 0.3s;
+            box-shadow: 0 8px 20px var(--glow-blue);
+        }
+        
+        .complete-day-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .rest-day-message {
+            text-align: center;
+            padding: 50px 20px;
+            font-size: 24px;
+            color: var(--primary-blue);
+            display: none;
+        }
+
+        .rest-day-message h2 {
+            justify-content: center;
+            color: var(--success-green);
+            font-size: 32px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>✨ Focus Flow</h1>
+        <div class="header-controls">
+            <div class="date-display" id="dateDisplay">Loading date...</div>
+            <button class="header-btn" id="themeToggleBtn" onclick="toggleDarkMode()">🌙 Dark</button>
+            <button class="header-btn" onclick="exportData()" title="Backup Data">💾 Export</button>
+            <button class="header-btn" onclick="triggerImport()" title="Restore Data">📂 Import</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <div class="panel">
+            <h2>🎯 Monthly Targets</h2>
+            
+            <div class="progress-container">
+                <div class="progress-fill" id="monthlyProgressFill"></div>
+            </div>
+            <div class="progress-text" id="monthlyProgressText">0% Completed</div>
+
+            <div class="input-row">
+                <input type="text" id="monthlyInput" placeholder="What's the major goal?" onkeypress="handleEnter(event, 'monthly')">
+                <button class="add-btn" onclick="addTask('monthly')">+</button>
+            </div>
+            <ul id="monthlyList"></ul>
+        </div>
+
+        <div class="panel">
+            <h2>🔄 Weekly Routine</h2>
+            
+            <div class="routine-header-info">
+                <div id="cycleText" style="font-weight: 800; font-size: 20px; color: var(--text-main);">Monday (Day 1 of 6)</div>
+                <div class="streak-container">
+                    <div class="streak-badge" id="streakText">🔥 Streak: 0 Weeks</div>
+                    <button class="reset-btn" onclick="resetStreak()" title="Reset Streak to 0">↺</button>
+                </div>
+                <div class="cycle-dots" id="cycleDots"></div>
+            </div>
+
+            <div id="routineWorkspace">
+                <div class="input-row">
+                    <input type="text" id="routineInput" placeholder="Add a weekly routine task..." onkeypress="handleEnter(event, 'routine')">
+                    <button class="add-btn" onclick="addTask('routine')">+</button>
+                </div>
+                <ul id="routineList"></ul>
+                <button id="completeDayBtn" class="complete-day-btn" onclick="advanceRoutineDay()">Next Day 🚀</button>
+            </div>
+
+            <div id="restDayMessage" class="rest-day-message">
+                <h2>🛌 Sunday Rest Day!</h2>
+                <p style="margin-top: 15px; font-size: 18px; color: var(--text-muted);">You've crushed 6 days of routine.<br>Let your brain recharge today.</p>
+                <button class="complete-day-btn" style="display: block; margin-top: 30px;" onclick="advanceRoutineDay()">Start New Week (Monday)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            monthly: [],
+            routineTasks: [],
+            routineState: {
+                dayInWeek: 1, // 1-6 (Mon-Sat Work), 7 (Sunday Rest)
+                streak: 0
+            },
+            darkMode: false
+        };
+
+        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        function updateLiveDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date();
+            document.getElementById('dateDisplay').innerText = today.toLocaleDateString(undefined, options);
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('focusFlowStateV4');
+            if (saved) {
+                state = JSON.parse(saved);
+            }
+            applyTheme();
+            updateLiveDate();
+            renderAll();
+        }
+
+        function saveData() {
+            localStorage.setItem('focusFlowStateV4', JSON.stringify(state));
+        }
+
+        function toggleDarkMode() {
+            state.darkMode = !state.darkMode;
+            applyTheme();
+            saveData();
+        }
+
+        function applyTheme() {
+            if (state.darkMode) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeToggleBtn').innerText = '☀️ Light';
+            } else {
+                document.body.classList.remove('dark-mode');
+                document.getElementById('themeToggleBtn').innerText = '🌙 Dark';
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `focus_flow_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function triggerImport() {
+            document.getElementById('importFile').click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && parsed.monthly && parsed.routineTasks && parsed.routineState) {
+                        state = parsed;
+                        saveData();
+                        applyTheme();
+                        renderAll();
+                        alert("Data successfully imported! 🎉");
+                    } else {
+                        alert("Invalid backup file format.");
+                    }
+                } catch (err) {
+                    alert("Error reading JSON file.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function handleEnter(e, type) {
+            if (e.key === 'Enter') addTask(type);
+        }
+
+        function addTask(type) {
+            const input = document.getElementById(type + 'Input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            let newTask = { id: Date.now(), text: text, completed: false };
+            
+            if (type === 'routine') {
+                state.routineTasks.push(newTask);
+            } else {
+                state[type].push(newTask);
+            }
+            
+            input.value = '';
+            saveData();
+            renderAll();
+        }
+
+        function deleteTask(type, id) {
+            if (type === 'routine') {
+                state.routineTasks = state.routineTasks.filter(task => task.id !== id);
+            } else {
+                state[type] = state[type].filter(task => task.id !== id);
+            }
+            saveData();
+            renderAll();
+        }
+
+        function editTask(type, id) {
+            let taskArray = type === 'routine' ? state.routineTasks : state[type];
+            const task = taskArray.find(t => t.id === id);
+            if (!task) return;
+
+            const newText = prompt("Edit your task:", task.text);
+            if (newText !== null && newText.trim() !== "") {
+                task.text = newText.trim();
+                saveData();
+                renderAll();
+            }
+        }
+
+        function toggleTask(event, type, id) {
+            let taskArray = type === 'routine' ? state.routineTasks : state[type];
+            const task = taskArray.find(t => t.id === id);
+            task.completed = !task.completed;
+            saveData();
+            renderAll();
+
+            if (task.completed) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                confetti({
+                    particleCount: 40,
+                    spread: 50,
+                    origin: { 
+                        x: (rect.left + (rect.width / 2)) / window.innerWidth, 
+                        y: (rect.top + (rect.height / 2)) / window.innerHeight 
+                    },
+                    colors: ['#007AFF', '#3b82f6', '#34c759', '#ffffff']
+                });
+            }
+        }
+
+        function advanceRoutineDay() {
+            if (state.routineState.dayInWeek < 6) {
+                state.routineState.dayInWeek++;
+                resetRoutineTasks();
+                shootConfetti(80);
+            } else if (state.routineState.dayInWeek === 6) {
+                state.routineState.dayInWeek = 7; // Sunday Rest Day
+                state.routineState.streak++;
+                resetRoutineTasks();
+                shootConfetti(250);
+            } else {
+                state.routineState.dayInWeek = 1; // Back to Monday
+            }
+            
+            saveData();
+            renderAll();
+        }
+
+        function resetRoutineTasks() {
+            state.routineTasks.forEach(t => t.completed = false);
+        }
+
+        function resetStreak() {
+            if (confirm("Reset your weekly streak back to 0?")) {
+                state.routineState.streak = 0;
+                saveData();
+                renderAll();
+            }
+        }
+
+        function shootConfetti(amount) {
+            confetti({
+                particleCount: amount,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ['#007AFF', '#34c759', '#ffffff', '#3b82f6'],
+                zIndex: 9999
+            });
+        }
+
+        function renderAll() {
+            renderMonthly();
+            renderRoutine();
+        }
+
+        function renderMonthly() {
+            const listEl = document.getElementById('monthlyList');
+            listEl.innerHTML = '';
+            
+            let total = state.monthly.length;
+            let completed = 0;
+
+            state.monthly.forEach(task => {
+                if (task.completed) completed++;
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="task-content ${task.completed ? 'completed' : ''}" onclick="toggleTask(event, 'monthly', ${task.id})">
+                        <div class="checkbox">${task.completed ? '✓' : ''}</div>
+                        <div class="text">${task.text}</div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="edit-btn" onclick="editTask('monthly', ${task.id})" title="Edit">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button class="delete-btn" onclick="deleteTask('monthly', ${task.id})" title="Delete">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(li);
+            });
+
+            const progressFill = document.getElementById('monthlyProgressFill');
+            const progressText = document.getElementById('monthlyProgressText');
+            
+            let percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+            progressFill.style.width = percentage + '%';
+            progressText.innerText = `${percentage}% Completed`;
+            
+            if (percentage === 100 && total > 0) {
+                progressFill.style.background = 'var(--success-green)';
+            } else {
+                progressFill.style.background = 'var(--primary-blue)';
+            }
+        }
+
+        function renderRoutine() {
+            const rState = state.routineState;
+            const isRestDay = rState.dayInWeek === 7;
+
+            document.getElementById('cycleText').innerText = isRestDay ? "Sunday — Rest & Recharge" : `${dayNames[rState.dayInWeek - 1]} (Day ${rState.dayInWeek} of 6)`;
+            document.getElementById('streakText').innerText = `🔥 Streak: ${rState.streak} Weeks`;
+
+            let dotsHtml = '';
+            for(let i=1; i<=6; i++) {
+                dotsHtml += `<div class="dot ${i <= rState.dayInWeek && !isRestDay ? 'active' : ''}" title="${dayNames[i-1]}"></div>`;
+            }
+            dotsHtml += `<div class="dot rest ${isRestDay ? 'active' : ''}" title="Sunday Rest Day"></div>`;
+            document.getElementById('cycleDots').innerHTML = dotsHtml;
+
+            const workspace = document.getElementById('routineWorkspace');
+            const restMessage = document.getElementById('restDayMessage');
+
+            if (isRestDay) {
+                workspace.style.display = 'none';
+                restMessage.style.display = 'block';
+            } else {
+                workspace.style.display = 'block';
+                restMessage.style.display = 'none';
+                
+                const listEl = document.getElementById('routineList');
+                listEl.innerHTML = '';
+                let allCompleted = state.routineTasks.length > 0;
+
+                state.routineTasks.forEach(task => {
+                    if (!task.completed) allCompleted = false;
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="task-content ${task.completed ? 'completed' : ''}" onclick="toggleTask(event, 'routine', ${task.id})">
+                            <div class="checkbox">${task.completed ? '✓' : ''}</div>
+                            <div class="text">${task.text}</div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="edit-btn" onclick="editTask('routine', ${task.id})" title="Edit">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                            <button class="delete-btn" onclick="deleteTask('routine', ${task.id})" title="Delete">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                    `;
+                    listEl.appendChild(li);
+                });
+
+                const completeBtn = document.getElementById('completeDayBtn');
+                completeBtn.style.display = allCompleted ? 'block' : 'none';
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
